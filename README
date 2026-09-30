@@ -29,9 +29,88 @@ Quick build instructions:
   make
 
 ------
-Install:
+Building on macOS (Apple Silicon) with HackRF / PlutoSDR:
 ------
+This fork builds and runs on macOS on Apple Silicon and adds a SoapySDR
+front-end so it can be used with HackRF and PlutoSDR (in addition to RTL-SDR).
+
+1. Install the dependencies with Homebrew:
+
+     brew install cmake itpp fftw boost libomp soapysdr soapyhackrf
+     # RTL-SDR support is optional:
+     brew install librtlsdr
+
+   For PlutoSDR (ADALM-PLUTO) you additionally need libiio, libad9361 and
+   SoapyPlutoSDR, which are not in Homebrew. Build them from source into the
+   Homebrew prefix (no sudo needed on Apple Silicon):
+
+     # libiio (use v0.25; note OSX_FRAMEWORK=OFF so it installs a plain dylib)
+     git clone -b v0.25 https://github.com/analogdevicesinc/libiio
+     cmake -S libiio -B libiio/build -DCMAKE_INSTALL_PREFIX=/opt/homebrew \
+       -DOSX_FRAMEWORK=OFF -DWITH_LOCAL_BACKEND=OFF -DWITH_TESTS=OFF \
+       -DWITH_DOC=OFF -DWITH_IIOD=OFF -DHAVE_DNS_SD=OFF
+     cmake --build libiio/build -j4 && cmake --install libiio/build
+
+     # libad9361
+     git clone https://github.com/analogdevicesinc/libad9361-iio
+     cmake -S libad9361-iio -B libad9361-iio/build \
+       -DCMAKE_INSTALL_PREFIX=/opt/homebrew -DOSX_FRAMEWORK=OFF
+     cmake --build libad9361-iio/build -j4 && cmake --install libad9361-iio/build
+
+     # SoapyPlutoSDR (CMAKE_FIND_FRAMEWORK=NEVER avoids a stale /Library/Frameworks copy)
+     git clone https://github.com/pothosware/SoapyPlutoSDR
+     cmake -S SoapyPlutoSDR -B SoapyPlutoSDR/build \
+       -DCMAKE_INSTALL_PREFIX=/opt/homebrew -DCMAKE_FIND_FRAMEWORK=NEVER \
+       -DCMAKE_PREFIX_PATH=/opt/homebrew
+     cmake --build SoapyPlutoSDR/build -j4 && cmake --install SoapyPlutoSDR/build
+
+   Verify both SDRs are visible:
+     SoapySDRUtil --find     # lists hackrf and/or plutosdr
+   (PlutoSDR tunes 325 MHz - 3.8 GHz, so use it only within that range.)
+
+2. Build:
+
+     cd LTE-Cell-Scanner
+     mkdir build && cd build
+     cmake ..
+     make -j4
+
+3. Verify the SDR is detected:
+
+     SoapySDRUtil --probe=driver=hackrf
+
+Using the SoapySDR backend (HackRF / PlutoSDR):
+
+  The new --soapy <args> option selects a SoapySDR device; --gain <dB> sets the
+  RX gain (omit for a sensible default / AGC). Samples are captured at an integer
+  multiple of 1.92 Msps and decimated with an anti-aliasing filter, because
+  HackRF cannot sample as low as 1.92 Msps.
+
+  # Search a band with a HackRF
+  CellSearch --soapy "driver=hackrf" --gain 40 --freq-start 791e6 --freq-end 821e6
+
+  # Track a cell with a HackRF
+  LTE-Tracker --soapy "driver=hackrf" --gain 40 -f 806e6
+
+  # PlutoSDR
+  CellSearch --soapy "driver=plutosdr" --freq-start 791e6 --freq-end 821e6
+
+------
+Install (so CellSearch / LTE-Tracker can be run from any directory):
+------
+Linux (installs into /usr/local/bin, which is already on your PATH):
   sudo make install
+
+macOS (Apple Silicon): install into the Homebrew prefix, no sudo needed.
+Configure with that prefix, then install:
+  cmake .. -DCMAKE_INSTALL_PREFIX=/opt/homebrew
+  make -j4
+  make install
+  # Now just run, from anywhere:
+  #   CellSearch --soapy "driver=hackrf" --freq-start 806e6 --freq-end 821e6
+  #   LTE-Tracker --soapy "driver=plutosdr" -f 806e6
+If /opt/homebrew/bin is not on your PATH, add it (Apple Silicon Homebrew):
+  echo 'export PATH="/opt/homebrew/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
 
 ------
 Quick usage instructions:

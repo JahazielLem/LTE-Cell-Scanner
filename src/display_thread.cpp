@@ -30,6 +30,7 @@
 #include <queue>
 #include <curses.h>
 #include <sys/syscall.h>
+#include "lts_compat.h"
 #include <sys/types.h>
 #include "rtl-sdr.h"
 #include "common.h"
@@ -377,7 +378,7 @@ void display_thread(
   tracked_cell_list_t & tracked_cell_list,
   bool & expert_mode
 ) {
-  global_thread_data.display_thread_id=syscall(SYS_gettid);
+  global_thread_data.display_thread_id=lts_gettid();
 
   // Initialize the curses screen
   initscr();

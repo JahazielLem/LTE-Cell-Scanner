@@ -29,6 +29,7 @@
 #include <queue>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include "lts_compat.h"
 #include <sys/types.h>
 #include <curses.h>
 #include "rtl-sdr.h"
@@ -41,7 +42,17 @@
 #include "searcher.h"
 #include "dsp.h"
 #include "rtl-sdr.h"
+#include "rtl_soapy.h"
 #include "LTE-Tracker.h"
+
+// SoapySDR backend selection (set from the command line). Kept at file scope so
+// both kalibrate() and main() can reach it without changing many signatures.
+static std::string g_soapy_args="";
+static double      g_soapy_gain=-1;
+#ifdef HAVE_SOAPYSDR
+static soapy_dev_t g_sdev;
+#endif
+static bool        g_use_soapy=false;
 
 using namespace itpp;
 using namespace std;
@@ -164,6 +175,8 @@ void parse_commandline(
       {"g7",           required_argument, 0, '7'},
       {"g8",           required_argument, 0, '8'},
       {"g9",           required_argument, 0, '9'},
+      {"soapy",        required_argument, 0, 1001},
+      {"gain",         required_argument, 0, 1002},
       {0, 0, 0, 0}
     };
     /* getopt_long stores the option index here. */
@@ -313,6 +326,16 @@ void parse_commandline(
         global_9=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not parse global variable 9" << endl;
+          ABORT(-1);
+        }
+        break;
+      case 1001:
+        g_soapy_args=optarg;
+        break;
+      case 1002:
+        g_soapy_gain=strtod(optarg,&endp);
+        if ((optarg==endp)||(*endp!='\0')) {
+          cerr << "Error: could not parse gain value" << endl;
           ABORT(-1);
         }
         break;
@@ -607,6 +630,11 @@ double kalibrate(
         }
       }
       fc_programmed=fc_requested;
+    } else if (g_use_soapy) {
+#ifdef HAVE_SOAPYSDR
+      capbuf.set_size(153600); // CAPLENGTH: 80 ms at 1.92 Msps
+      soapy_capture_data(g_sdev,fc_requested,capbuf,fc_programmed);
+#endif
     } else {
       capture_data(fc_requested,1.0,false,false,".",dev,capbuf,fc_programmed);
     }
@@ -782,11 +810,24 @@ int main(
   // Get search parameters from the user
   parse_commandline(argc,argv,fc_requested,ppm,correction,device_index,expert_mode,use_recorded_data,filename,repeat,drop_secs,rtl_sdr_format,noise_power);
 
-  // Open the USB device.
+  // Select the SDR backend. A non-empty --soapy argument selects SoapySDR
+  // (e.g. HackRF/PlutoSDR); otherwise the RTL-SDR path is used.
+  g_use_soapy=!g_soapy_args.empty();
+
+  // Open the device.
   rtlsdr_dev_t * dev=NULL;
   double fs_programmed;
   if (!use_recorded_data) {
-    config_usb(device_index,fc_requested,dev,fs_programmed);
+    if (g_use_soapy) {
+#ifdef HAVE_SOAPYSDR
+      soapy_config(g_soapy_args,fc_requested,g_soapy_gain,g_sdev,fs_programmed);
+#else
+      cerr << "Error: this build has no SoapySDR support" << endl;
+      ABORT(-1);
+#endif
+    } else {
+      config_usb(device_index,fc_requested,dev,fs_programmed);
+    }
   } else {
     fs_programmed=correction*1.92e6;
   }
@@ -809,7 +850,7 @@ int main(
   cout << "fs_programmed = " << fs_programmed << endl;
   cout << "fs_programmed-1.92e6 = " << fs_programmed-1.92e6 << endl;
   */
-  global_thread_data.main_thread_id=syscall(SYS_gettid);
+  global_thread_data.main_thread_id=lts_gettid();
   global_thread_data.frequency_offset(initial_freq_offset);
 
   // Start the cell searcher thread.
@@ -865,6 +906,21 @@ int main(
     boost::this_thread::sleep(boost::posix_time::seconds(10));
     ABORT(-1);
 
+  } else if (g_use_soapy) {
+#ifdef HAVE_SOAPYSDR
+    // Continuously read decimated (1.92 Msps) samples from SoapySDR and feed
+    // them to the producer thread in the same unsigned-8-bit IQ format the
+    // RTL-SDR callback produces.
+    const int chunk=19200; // 10 ms of decimated samples
+    vector<unsigned char> buf(chunk*2);
+    while (true) {
+      soapy_read_u8(g_sdev,&buf[0],chunk);
+      rtlsdr_callback(&buf[0],chunk*2,(void *)&sampbuf_sync);
+    }
+#else
+    cerr << "Error: this build has no SoapySDR support" << endl;
+    ABORT(-1);
+#endif
   } else {
     // Start the async read process. This should never return.
     rtlsdr_read_async(dev,rtlsdr_callback,(void *)&sampbuf_sync,0,0);

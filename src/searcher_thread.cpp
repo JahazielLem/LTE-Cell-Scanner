@@ -30,6 +30,7 @@
 #include <queue>
 //#include <valgrind/callgrind.h>
 #include <sys/syscall.h>
+#include "lts_compat.h"
 #include <sys/types.h>
 #include <curses.h>
 #include "rtl-sdr.h"
@@ -61,7 +62,7 @@ void searcher_thread(
     cout << "Searcher process has been launched." << endl;
   }
 
-  global_thread_data.searcher_thread_id=syscall(SYS_gettid);
+  global_thread_data.searcher_thread_id=lts_gettid();
 
   if (nice(20)==-1) {
     cerr << "Error: could not reduce searcher process priority" << endl;
