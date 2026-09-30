@@ -208,8 +208,10 @@ void soapy_capture_data(
   const int n_out = capbuf.size();
   vector<complex<double> > tmp(n_out);
   soapy_decimate(s, n_out, &tmp[0]);
+  const bool conj = (getenv("LTS_CONJ") != 0);
   double p = 0.0, pk = 0.0;
   for (int t = 0; t < n_out; t++) {
+    if (conj) tmp[t] = std::conj(tmp[t]);
     capbuf(t) = tmp[t];
     const double m = tmp[t].real()*tmp[t].real() + tmp[t].imag()*tmp[t].imag();
     p += m;

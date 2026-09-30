@@ -47,14 +47,14 @@ front-end so it can be used with HackRF and PlutoSDR (in addition to RTL-SDR).
      # libiio (use v0.25; note OSX_FRAMEWORK=OFF so it installs a plain dylib)
      git clone -b v0.25 https://github.com/analogdevicesinc/libiio
      cmake -S libiio -B libiio/build -DCMAKE_INSTALL_PREFIX=/opt/homebrew \
-       -DOSX_FRAMEWORK=OFF -DWITH_LOCAL_BACKEND=OFF -DWITH_TESTS=OFF \
+       -DOSX_FRAMEWORK=OFF -DCMAKE_INSTALL_NAME_DIR=/opt/homebrew/lib -DWITH_LOCAL_BACKEND=OFF -DWITH_TESTS=OFF \
        -DWITH_DOC=OFF -DWITH_IIOD=OFF -DHAVE_DNS_SD=OFF
      cmake --build libiio/build -j4 && cmake --install libiio/build
 
      # libad9361
      git clone https://github.com/analogdevicesinc/libad9361-iio
      cmake -S libad9361-iio -B libad9361-iio/build \
-       -DCMAKE_INSTALL_PREFIX=/opt/homebrew -DOSX_FRAMEWORK=OFF
+       -DCMAKE_INSTALL_PREFIX=/opt/homebrew -DOSX_FRAMEWORK=OFF -DCMAKE_INSTALL_NAME_DIR=/opt/homebrew/lib
      cmake --build libad9361-iio/build -j4 && cmake --install libad9361-iio/build
 
      # SoapyPlutoSDR (CMAKE_FIND_FRAMEWORK=NEVER avoids a stale /Library/Frameworks copy)
