@@ -14,6 +14,10 @@ FIND_PATH(FFTW_INCLUDE_DIR fftw3.h
   /usr/pkgs64/include
   /usr/include
   /usr/local/include
+  /opt/homebrew/include
+  /opt/homebrew/opt/itpp/include
+  /opt/homebrew/opt/fftw/include
+  /opt/homebrew/opt/librtlsdr/include
 )
 
 FIND_LIBRARY(FFTW_LIBRARY
@@ -25,6 +29,10 @@ FIND_LIBRARY(FFTW_LIBRARY
   /usr/lib64
   /usr/lib
   /usr/local/lib
+  /opt/homebrew/lib
+  /opt/homebrew/opt/itpp/lib
+  /opt/homebrew/opt/fftw/lib
+  /opt/homebrew/opt/librtlsdr/lib
   NO_DEFAULT_PATH
 )
 

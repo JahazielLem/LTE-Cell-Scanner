@@ -14,6 +14,10 @@ FIND_PATH(ITPP_INCLUDE_DIR itpp/itbase.h
   /usr/pkgs64/include
   /usr/include
   /usr/local/include
+  /opt/homebrew/include
+  /opt/homebrew/opt/itpp/include
+  /opt/homebrew/opt/fftw/include
+  /opt/homebrew/opt/librtlsdr/include
 )
 
 FIND_LIBRARY(ITPP_LIBRARY_NORMAL
@@ -24,6 +28,10 @@ FIND_LIBRARY(ITPP_LIBRARY_NORMAL
   /usr/lib64
   /usr/lib
   /usr/local/lib
+  /opt/homebrew/lib
+  /opt/homebrew/opt/itpp/lib
+  /opt/homebrew/opt/fftw/lib
+  /opt/homebrew/opt/librtlsdr/lib
   NO_DEFAULT_PATH
 )
 
@@ -35,6 +43,10 @@ FIND_LIBRARY(ITPP_LIBRARY_DEBUG
   /usr/lib64
   /usr/lib
   /usr/local/lib
+  /opt/homebrew/lib
+  /opt/homebrew/opt/itpp/lib
+  /opt/homebrew/opt/fftw/lib
+  /opt/homebrew/opt/librtlsdr/lib
   NO_DEFAULT_PATH
 )
 

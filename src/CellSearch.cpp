@@ -33,6 +33,7 @@
 #include "searcher.h"
 #include "dsp.h"
 #include "rtl-sdr.h"
+#include "rtl_soapy.h"
 
 using namespace itpp;
 using namespace std;
@@ -101,7 +102,9 @@ void parse_commandline(
   bool & save_cap,
   bool & use_recorded_data,
   string & data_dir,
-  int & device_index
+  int & device_index,
+  string & soapy_args,
+  double & gain
 ) {
   // Default values
   freq_start=-1;
@@ -112,6 +115,8 @@ void parse_commandline(
   use_recorded_data=false;
   data_dir=".";
   device_index=-1;
+  soapy_args="";
+  gain=-1;
 
   while (1) {
     static struct option long_options[] = {
@@ -126,6 +131,8 @@ void parse_commandline(
       {"load",         no_argument,       0, 'l'},
       {"data-dir",     required_argument, 0, 'd'},
       {"device-index", required_argument, 0, 'i'},
+      {"soapy",        required_argument, 0, 1001},
+      {"gain",         required_argument, 0, 1002},
       {0, 0, 0, 0}
     };
     /* getopt_long stores the option index here. */
@@ -200,6 +207,16 @@ void parse_commandline(
         }
         if (device_index<0) {
           cerr << "Error: device index cannot be negative" << endl;
+          ABORT(-1);
+        }
+        break;
+      case 1001:
+        soapy_args=optarg;
+        break;
+      case 1002:
+        gain=strtod(optarg,&endp);
+        if ((optarg==endp)||(*endp!='\0')) {
+          cerr << "Error: could not parse gain value" << endl;
           ABORT(-1);
         }
         break;
@@ -449,13 +466,32 @@ int main(
   int32 device_index;
 
   // Get search parameters from user
-  parse_commandline(argc,argv,freq_start,freq_end,ppm,correction,save_cap,use_recorded_data,data_dir,device_index);
+  string soapy_args;
+  double gain;
+  parse_commandline(argc,argv,freq_start,freq_end,ppm,correction,save_cap,use_recorded_data,data_dir,device_index,soapy_args,gain);
 
-  // Open the USB device (if necessary).
+  // Select the SDR backend. A non-empty --soapy argument selects SoapySDR
+  // (e.g. HackRF/PlutoSDR); otherwise the RTL-SDR path is used.
+  const bool use_soapy=!soapy_args.empty();
+
+  // Open the device (if necessary).
   rtlsdr_dev_t * dev=NULL;
   double fs_programmed;
-  if (!use_recorded_data)
-    config_usb(correction,device_index,freq_start,dev,fs_programmed);
+#ifdef HAVE_SOAPYSDR
+  soapy_dev_t sdev;
+#endif
+  if (!use_recorded_data) {
+    if (use_soapy) {
+#ifdef HAVE_SOAPYSDR
+      soapy_config(soapy_args,freq_start,gain,sdev,fs_programmed);
+#else
+      cerr << "Error: this build has no SoapySDR support" << endl;
+      ABORT(-1);
+#endif
+    } else {
+      config_usb(correction,device_index,freq_start,dev,fs_programmed);
+    }
+  }
 
   // Generate a list of center frequencies that should be searched and also
   // a list of frequency offsets that should be searched for each center
@@ -478,7 +514,15 @@ int main(
     // Fill capture buffer
     cvec capbuf;
     double fc_programmed;
-    capture_data(fc_requested,correction,save_cap,use_recorded_data,data_dir,dev,capbuf,fc_programmed);
+#ifdef HAVE_SOAPYSDR
+    if (use_soapy&&!use_recorded_data) {
+      capbuf.set_size(153600); // CAPLENGTH: 80 ms at 1.92 Msps
+      soapy_capture_data(sdev,fc_requested,capbuf,fc_programmed);
+    } else
+#endif
+    {
+      capture_data(fc_requested,correction,save_cap,use_recorded_data,data_dir,dev,capbuf,fc_programmed);
+    }
 
     // Correlate
 #define DS_COMB_ARM 2
