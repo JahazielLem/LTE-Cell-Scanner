@@ -92,8 +92,23 @@ Using the SoapySDR backend (HackRF / PlutoSDR):
   # Track a cell with a HackRF
   LTE-Tracker --soapy "driver=hackrf" --gain 40 -f 806e6
 
-  # PlutoSDR
-  CellSearch --soapy "driver=plutosdr" --freq-start 791e6 --freq-end 821e6
+  # PlutoSDR (tunes 325 MHz - 3.8 GHz)
+  CellSearch --soapy "driver=plutosdr" --gain 45 --ppm 60 --freq-start 758e6 --freq-end 803e6
+
+  Tips for PlutoSDR / HackRF:
+  - Oscillator error: the ADALM-PLUTO's crystal was measured at ~18 ppm here, so
+    use a wide enough search with --ppm 60 (the default pre-set may be too narrow
+    and miss cells). CellSearch reports the measured error as
+    CrystalCorrectionFactor in its output.
+  - Gain: start around --gain 45 and lower it if a strong carrier saturates the
+    front end (peak magnitude near 1.0). A quick level check at one frequency:
+      CellSearch --soapy "driver=plutosdr" --gain 50 -v -s <freq> -e <freq>
+    and read the "[soapy] ... mean_pwr / peak_mag" line.
+  - Verified on macOS: a Band 28 scan detected live cells, e.g.
+      CellSearch --soapy "driver=plutosdr" --gain 45 --ppm 60 -s 758e6 -e 803e6
+      -> cells at 763 / 773 / 785.5 MHz (and Band 26 cells near 874 MHz).
+  - Spectral inversion: if a known cell is never found, try setting LTS_CONJ=1 in
+    the environment to conjugate the IQ stream (mirrored-spectrum front ends).
 
 ------
 Install (so CellSearch / LTE-Tracker can be run from any directory):
