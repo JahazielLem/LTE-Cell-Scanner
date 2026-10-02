@@ -110,6 +110,16 @@ Using the SoapySDR backend (HackRF / PlutoSDR):
   - Spectral inversion: if a known cell is never found, try setting LTS_CONJ=1 in
     the environment to conjugate the IQ stream (mirrored-spectrum front ends).
 
+  Note on HackRF/PlutoSDR and *traffic* sniffing:
+  CellSearch/LTE-Tracker only need a low sample rate (1.92-3.84 Msps), so both
+  the HackRF and the PlutoSDR work well here for *cell detection/tracking*.
+  Decoding actual user/control traffic (a separate tool, e.g. LTESniffer) needs
+  the cell's full bandwidth - 11.52 Msps for a 10 MHz / 50 PRB cell. The
+  PlutoSDR's USB 2.0 link sustains only ~7.7 Msps, so it cannot sniff >= 10 MHz
+  cells (great for detection, not for traffic). The HackRF sustains the rate but
+  its zero-IF DC spike / 8-bit ADC make traffic decoding marginal. For robust
+  traffic sniffing use a USB 3.0 SDR (e.g. USRP B210).
+
 ------
 Install (so CellSearch / LTE-Tracker can be run from any directory):
 ------
